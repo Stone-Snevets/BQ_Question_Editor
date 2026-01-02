@@ -1,0 +1,26 @@
+name = "BQ_Editor_Checks"
+
+# Install packages to be used in this project
+#-> pandas - creating and working with dataframes to better read the data
+#-> PyPDF2 - converting PDF input files into readable text
+#-> python-docx - converting DOCX input files into readable text
+#-> striprtf - converting RTF input files into readable text
+packages = ["pandas", "PyPDF2", "python-docx", "striprtf"]
+# Default Packages Included:
+#-> csv - writing our findings to a CSV file
+#-> io - converting raw input into something we can work with
+#-> js - working with javascript-related files (like html)
+#-> re - regular expressions
+
+# Add in files to pyscript project
+[files]
+# Local files
+"a_GetFileContents.py" = "a_GetFileContents.py"
+"e_AddEditorChecks.py" = "e_AddEditorChecks.py"
+"f_EditSets.py" = "f_EditSets.py"
+"g_EditQuestions.py" = "g_EditQuestions.py"
+# Files taken from 'BQ_Question_Summarizer_V_2_0' repository
+#-> https://github.com/Stone-Snevets/BQ_Question_Summarizer_V_2_0/tree/main
+"https://raw.githubusercontent.com/Stone-Snevets/BQ_Question_Summarizer_V_2_0/refs/heads/main/b_SummarizeQuestions.py" = "b_SummarizeQuestions.py"
+"https://raw.githubusercontent.com/Stone-Snevets/BQ_Question_Summarizer_V_2_0/refs/heads/main/c_AddQuestionNotes.py" = "c_AddQuestionNotes.py"
+"https://raw.githubusercontent.com/Stone-Snevets/BQ_Question_Summarizer_V_2_0/refs/heads/main/d_AddConcordance.py" = "d_AddConcordance.py"
