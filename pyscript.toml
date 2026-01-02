@@ -15,10 +15,10 @@ packages = ["pandas", "PyPDF2", "python-docx", "striprtf"]
 # Add in files to pyscript project
 [files]
 # Local files
-"a_GetFileContents.py" = "a_GetFileContents.py"
-"e_AddEditorChecks.py" = "e_AddEditorChecks.py"
-"f_EditSets.py" = "f_EditSets.py"
-"g_EditQuestions.py" = "g_EditQuestions.py"
+"./a_GetFileContents.py" = "a_GetFileContents.py"
+"./e_AddEditorChecks.py" = "e_AddEditorChecks.py"
+"./f_EditSets.py" = "f_EditSets.py"
+"./g_EditQuestions.py" = "g_EditQuestions.py"
 # Files taken from 'BQ_Question_Summarizer_V_2_0' repository
 #-> https://github.com/Stone-Snevets/BQ_Question_Summarizer_V_2_0/tree/main
 "https://raw.githubusercontent.com/Stone-Snevets/BQ_Question_Summarizer_V_2_0/refs/heads/main/b_SummarizeQuestions.py" = "b_SummarizeQuestions.py"
