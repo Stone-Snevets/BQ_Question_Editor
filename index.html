@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>BQ_Editor_Checks</title>
+
+    <!-- Recommended meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+    <!-- PyScript CSS -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.11.1/core.css">
+
+    <!-- This script tag bootstraps PyScript -->
+    <script type="module" src="https://pyscript.net/releases/2025.11.1/core.js"></script>
+
+    <!--- Specifications for a viewing table --->
+    <!--  > For the actual table (table) -->
+    <!--  > For the table's contents (th, td) -->
+    <style>
+        table {
+            border-collapse: collapse;
+            margin-top: 1em;
+            background: #fff;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 6px 12px;
+            text-align: left;
+        }
+        th {
+            background:#f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <!--- Have user select a file --->
+    <label for="input_file">Select a file:</label>
+    <input type="file" id="input_file" name="input_file" accept=".pdf, .txt, .docx, .rtf">
+
+    <!-- Begin the Python Script -->
+    <script type="py" src="./main.py" config="./pyscript.toml" terminal></script>
+
+    <!-- Send edit output to html page -->
+    <div id='edit_output'></div>
+</body>
+</html>
