@@ -59,70 +59,47 @@ def edit_sets__concordance(df):
             # See if there are more than 5 concordance questions in the set
             if len(df_conc) > 5:
                 # If so, throw a flag
-                if i < 9:
-                    # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                    output_list.append(f'<p>* SET 0{i+1} may have too many Concordance questions (<i>{len(df_conc)}x</i>) (<i>{', '.join(map(str, df_set['Q_Num']))}</i>). Consider moving some of these to other sets.</p>')
-                else: # If not, keep the set number the same
-                    output_list.append(f'<p>* SET {i+1} may have too many Concordance questions (<i>{len(df_conc)}x</i>) (<i>{', '.join(map(str, df_set['Q_Num']))}</i>). Consider moving some of these to other sets.</p>')
+                output_list.append(f'<p>* SET {i+1: 03d} may have too many Concordance questions (<i>{len(df_conc)}x</i>) (<i>{', '.join(map(str, df_set['Q_Num']))}</i>). Consider moving some of these to other sets.</p>')
 
+            
             # === Check if there are consecutive, non-10-point questions that are concordance ===
             # Create a sub-dataframe containing all the non-10-point questions
             df_non_10 = df.loc[(df['Set_Num'] == i+1) & (df['Pt_Val'] != 10)]
-            # Create an index variable to run through the following 'while' loop
-            j = 0
-            # Create a list for storing the question numbers that meet this criteria
-            list_q_nums = []
-            # For all the questions in this dataset
-            while j < len(df_non_10):
-                # As long as we are still in the dataframe and...
-                # If questions j and j+1 are both concordance
-                while ((j+1 < len(df_non_10) and (df_non_10['Concordance'].iloc[j] != '_') and (df_non_10['Concordance'].iloc[j+1] != '_'))):
-                    # Append the jth questin's number to the list
-                    list_q_nums.append(df_non_10['Q_Num'].iloc[j])
-                    # Increment j
-                    j += 1
-                # If not, see if there is anything in the list
-                if list_q_nums:
-                    # If so, append the last number in the consecutive streak
-                    list_q_nums.append(df_non_10['Q_Num'].iloc[j])
-                    if i < 9:
-                        # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                        output_list.append(f'<p>* SET 0{i+1}: There are consecutive, non-10-point questions (<i>{', '.join(map(str, list_q_nums))}</i>) that are Concordance questions. Consider spreading these out.</p>')    
-                    else: # If not, keep the number the same
-                        output_list.append(f'<p>* SET {i+1}: There are consecutive, non-10-point questions (<i>{', '.join(map(str, list_q_nums))}</i>) that are Concordance questions. Consider spreading these out.</p>')
-                # Increment j
-                j += 1
-            
+            set_consec_conc_questions = set()
+            for j in range(len(df_non_10)-1):
+                # Check if this question is a concordance question and...
+                # Check if the next question is a concordance question
+                if df_non_10['Concordance'].iloc[j] != '_' and df_non_10['Concordance'].iloc[j+1] != '_':
+                    # If so, add these questions to the set of consecutive concordance questions
+                    #-> The set will automatically remove duplicates
+                    set_consec_conc_questions.add(int(df_non_10['Q_Num'].iloc[j]))
+                    set_consec_conc_questions.add(int(df_non_10['Q_Num'].iloc[j+1]))
+                # If not, check if we have a set of consecutive concordance questions
+                elif len(set_consec_conc_questions) > 1:
+                    # If so, send a flag to the output attaching these questions
+                    output_list.append(f'<p>* SET {i+1: 03d}: There are consecutive, non-10-point questions (<i>{', '.join(map(str, sorted(set_consec_conc_questions)))}</i>) that are Concordance questions. Consider spreading these out.</p>')
+                    # Reset the list
+                    set_consec_conc_questions = set()
+                # If nothing is in the set, just proceed through the 'for' loop
 
+            
             # === Check if there is no CONC_FV when there is CONC_QE ===
             # If there is a concordance question asking the quizzer to quote/give in essence verses, and...
             # If there is no concordance question asking the quizzer to quote/give in essence verses
             if (len(df_conc.loc[df_conc['Q_Intro'].str.contains(r'Q|E')]) > 0) and (len(df_conc.loc[df_conc['Q_Intro'].str.contains(r'Q|E')]) == len(df_conc['Q_Intro'])):
                 # Throw a flag
-                if i < 9:
-                    # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                    output_list.append(f'<p>* SET 0{i+1} asks Concordance question(s) where quizzers need to give the verses, but it does not ask for questions from the verse context. Consider adding in some.</p>')
-                else: # If not, keep the number the same
-                    output_list.append(f'<p>* SET {i+1} asks Concordance question(s) where quizzers need to give the verses, but it does not ask for questions from the verse context. Consider adding in some.</p>')
+                output_list.append(f'<p>* SET {i+1: 03d} asks Concordance question(s) where quizzers need to give the verses, but it does not ask for questions from the verse context. Consider adding in some.</p>')
 
             # === Check if there is no CONC_QE when there is CONC_FV ===
             # If there as a concordance question asking the quizzer from the verse's context, and...
             # If there is no concordance question asking the quizzer to quote/give in essence verses
             if (len(df_conc.loc[df_conc['Q_Intro'].str.contains(r'Q|E') == False]) > 0) and (len(df_conc.loc[df_conc['Q_Intro'].str.contains(r'Q|E') == False]) == len(df_conc['Q_Intro'])):
                 # Throw a flag
-                if i < 9:
-                    # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                    output_list.append(f'<p>* SET 0{i+1} asks Concordance question(s) from the verse context, but does not ask a Concordance question requriing the quizzer to say the verses. Consider adding in some.</p>')    
-                else: # If not, keep the number the same
-                    output_list.append(f'<p>* SET {i+1} asks Concordance question(s) from the verse context, but does not ask a Concordance question requriing the quizzer to say the verses. Consider adding in some.</p>')
+                output_list.append(f'<p>* SET {i+1: 03d} asks Concordance question(s) from the verse context, but does not ask a Concordance question requiring the quizzer to say the verses. Consider adding in some.</p>')
 
         # Else, throw a flag that there are NO Concordance questions in the set
         else:
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>! SET 0{i+1} has NO Concordance questions.  Consider adding some from other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>! SET {i+1} has NO Concordance questions.  Consider adding some from other sets.</p>')
+            output_list.append(f'<p>! SET {i+1: 03d} has NO Concordance questions.  Consider adding some from other sets.</p>')
 
     # Return the output list
     return output_list
@@ -155,56 +132,32 @@ def edit_sets__type_of_question(df):
         # === Check if there are multiple Unique Word questions ===
         if len(df_set.loc[df['Notes'] == 'Unique word']) > 1:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} has multiple <i>Unique Word</i> related questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'Unique word', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} has multiple <i>Unique Word</i> related questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'Unique word', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple <i>Unique Word</i> related questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'Unique word', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
 
         # === Check if there are multiple "of" phrase questions ===
         if len(df_set.loc[df['Notes'] == '"of" phrase']) > 1:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} has multiple <i>"of" phrase</i> questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == '"of" phrase', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} has multiple <i>"of" phrase</i> questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == '"of" phrase', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple <i>"of" phrase</i> questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == '"of" phrase', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
 
         # === Check if there are multiple Adjective questions ===
         if len(df_set.loc[df['Notes'] == 'Adjective']) > 1:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} has multiple <i>Adjective</i> related questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'Adjective', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} has multiple <i>Adjective</i> related questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'Adjective', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple <i>Adjective</i> related questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'Adjective', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
         
         # === Check if there are multiple "According to *verse*" questions ===
         if len(df_set.loc[df['Notes'] == 'According to *verse*']) > 1:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} has multiple "<i>According to *verse*</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'According to *verse*', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} has multiple "<i>According to *verse*</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'According to *verse*', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>According to *verse*</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'According to *verse*', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
         
         # === Check if there are multiple "About/Describe" questions ===
         if len(df_set.loc[df['Notes'].str.contains(r'About|Describe')]) > 1:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} has multiple "<i>About/Describe</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'].str.contains(r'About|Describe'), 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} has multiple "<i>About/Describe</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'].str.contains(r'About|Describe'), 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>About/Describe</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'].str.contains(r'About|Describe'), 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
         
         # === Check if there are multiple "How does *verse* describe *noun*" questions ===
         if len(df_set.loc[df['Notes'] == 'How does *verse* describe ___']) > 1:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} has multiple "<i>How does *verse* describe ___</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'How does *verse* describe ___', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} has multiple "<i>How does *verse* describe ___</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'How does *verse* describe ___', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>How does *verse* describe ___</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'How does *verse* describe ___', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
 
     # Return the output
     return output_list
@@ -272,11 +225,7 @@ def edit_sets__intro(df):
                     else: # j == 5
                         repeated_intro = 'Quotation Completion/Essence Completion Question'
                     # Send a flag to the output
-                    if i < 9:
-                        # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                        output_list.append(f'<p>* SET 0{i+1}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>{repeated_intro}</i>). Consider moving these around.</p>')
-                    else: # If not, keep the number the same
-                        output_list.append(f'<p>* SET {i+1}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>{repeated_intro}</i>). Consider moving these around.</p>')
+                    output_list.append(f'<p>* SET {i+1: 03d}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>{repeated_intro}</i>). Consider moving these around.</p>')
                 else:
                     k += 1
         
@@ -291,11 +240,7 @@ def edit_sets__intro(df):
                 # If so, call consecutive_counter() to determine how many consecutive questions there are
                 str_consec, cnt, k = consecutive_counter(df_shorthand, k)
                 # Send a flag to the output
-                if i < 9:
-                    # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                    output_list.append(f'<p>* SET 0{i+1}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>Multiple-Part Answer</i>). Consider moving these around.</p>')
-                else: # If not, keep the number the same
-                    output_list.append(f'<p>* SET {i+1}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>Multiple-Part Answer</i>). Consider moving these around.</p>')
+                output_list.append(f'<p>* SET {i+1: 03d}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>Multiple-Part Answer</i>). Consider moving these around.</p>')
             # If not, just increment k
             else:
                 k += 1
@@ -305,22 +250,14 @@ def edit_sets__intro(df):
             # If so, grab the question numbers of these questions and...
             q_nums = df_set.loc[(df_set['Q_Intro'].str.contains('S', case = True)), ('Q_Num')]
             # Throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Statement and Question</i>. Consider moving some of these to other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Statement and Question</i>. Consider moving some of these to other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Statement and Question</i>. Consider moving some of these to other sets.</p>')
 
         # === Check if there are more than 4 questions marked Scripture Text Question ===
         if (len(df_set.loc[df_set['Q_Intro'].str.contains('T', case = True)]) > 4):
             # If so, grab the question numbers of these questions and...
             q_nums = df_set.loc[(df_set['Q_Intro'].str.contains('T', case = True)), ('Q_Num')]
             # Throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Scripture-Text Question</i>. Consider moving some of these to other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Scripture-Text Question</i>. Consider moving some of these to other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Scripture-Text Question</i>. Consider moving some of these to other sets.</p>')
 
     # Return the output list
     return output_list
@@ -368,11 +305,7 @@ def edit_sets__A(df):
                 # If not, check if the set has question numbers in it
                 if len(set_consec_questions) != 0:
                     # If yes, send a message to the output
-                    if i < 9:
-                        # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                        output_list.append(f'<p>* SET 0{i+1}: Consecutive questions (<i>{', '.join(map(str, set_consec_questions))}</i>) are labeled as <i>Chapter Analysis</i>. Consider moving these around.</p>')
-                    else: # If not, keep the number the same
-                        output_list.append(f'<p>* SET {i+1}: Consecutive questions (<i>{', '.join(map(str, set_consec_questions))}</i>) are labeled as <i>Chapter Analysis</i>. Consider moving these around.</p>')
+                    output_list.append(f'<p>* SET {i+1: 03d}: Consecutive questions (<i>{', '.join(map(str, set_consec_questions))}</i>) are labeled as <i>Chapter Analysis</i>. Consider moving these around.</p>')
                 # Reset the set
                 set_consec_questions = set()
 
@@ -380,21 +313,13 @@ def edit_sets__A(df):
         # Check if the length of the current set's dataframe is zero
         if len(df_A) == 0:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>! SET 0{i+1} has NO Chapter Analysis questions in it. Consider adding one.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>! SET {i+1} has NO Chapter Analysis questions in it. Consider adding one.</p>')
+            output_list.append(f'<p>! SET {i+1: 03d} has NO Chapter Analysis questions in it. Consider adding one.</p>')
             
         # === Check if the set has more than 3 Chapter Analysis quesitons ===
         # Check if the lengh of the current set's dataframe is more than three
         if len(df_A) > 3:
             # If so, throw a flag
-            if i < 9:
-                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                output_list.append(f'<p>* SET 0{i+1} may have too many Chapter Analysis questions (<i>{', '.join(map(str, df_A['Q_Num']))}</i>) (<i>{len(df_A)}x</i>). Consider moving some to other sets.</p>')
-            else: # If not, keep the number the same
-                output_list.append(f'<p>* SET {i+1} may have too many Chapter Analysis questions (<i>{', '.join(map(str, df_A['Q_Num']))}</i>) (<i>{len(df_A)}x</i>). Consider moving some to other sets.</p>')
+            output_list.append(f'<p>* SET {i+1: 03d} may have too many Chapter Analysis questions (<i>{', '.join(map(str, df_A['Q_Num']))}</i>) (<i>{len(df_A)}x</i>). Consider moving some to other sets.</p>')
 
         # === Check if the set has more than one of the same type of Chapter Analysis === 
         # Check if each question's note is unique
@@ -409,11 +334,7 @@ def edit_sets__A(df):
                 # Find all the quesitons in the set with that note
                 duped_note_questions = list(df_A.loc[(df['Notes'] == j), ('Q_Num')])
                 # Send the flag to the output list
-                if i < 9:
-                    # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                    output_list.append(f'<p>* SET 0{i+1} has multiple (<i>{', '.join(map(str, duped_note_questions))}</i>) of the same type of Chapter Analysis question (<i>{j}</i>). Consider spreading these throughout other sets.</p>')
-                else: # If not, keep the number the same
-                    output_list.append(f'<p>* SET {i+1} has multiple (<i>{', '.join(map(str, duped_note_questions))}</i>) of the same type of Chapter Analysis question (<i>{j}</i>). Consider spreading these throughout other sets.</p>')
+                output_list.append(f'<p>* SET {i+1: 03d} has multiple (<i>{', '.join(map(str, duped_note_questions))}</i>) of the same type of Chapter Analysis question (<i>{j}</i>). Consider spreading these throughout other sets.</p>')
                 
 
     # Return the output list
@@ -478,11 +399,7 @@ def edit_sets__references(df):
                                                                 (df['Set_Num'] == i+1)
                                                                 ), ('Q_Num')])
                     # Write an output message letting the user know what questions have duplicate references
-                    if i < 9:
-                        # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                        output_list.append(f'<p>* SET 0{i+1}: Multiple questions (<i>{', '.join(map(str, list_questions_with_same_ref))}</i>) are coming from the same verse (<i>{list_complete_refs[j]}</i>). Consider moving some to other sets.</p>')
-                    else: # If not, keep the number the same
-                        output_list.append(f'<p>* SET {i+1}: Multiple questions (<i>{', '.join(map(str, list_questions_with_same_ref))}</i>) are coming from the same verse (<i>{list_complete_refs[j]}</i>). Consider moving some to other sets.</p>')
+                    output_list.append(f'<p>* SET {i+1: 03d}: Multiple questions (<i>{', '.join(map(str, list_questions_with_same_ref))}</i>) are coming from the same verse (<i>{list_complete_refs[j]}</i>). Consider moving some to other sets.</p>')
 
 
         # === Check if 2 consecutive questions are from the same chapter ===
@@ -510,11 +427,7 @@ def edit_sets__references(df):
                             # Call consecutive_counter() to determine how many consecutive questions there are
                             str_consec, cnt, k = consecutive_counter(df_identical_chapter, k)
                             # Send a flag to the output
-                            if i < 9:
-                                # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                                output_list.append(f'<p>* SET 0{i+1}: Consecutive questions (<i>{str_consec}</i>) are coming from the same chapter (<i>{ch}</i>). Consider moving some of these to other sets.</p>')
-                            else: # If not, keep the question number
-                                output_list.append(f'<p>* SET {i+1}: Consecutive questions (<i>{str_consec}</i>) are coming from the same chapter (<i>{ch}</i>). Consider moving some of these to other sets.</p>')
+                            output_list.append(f'<p>* SET {i+1: 03d}: Consecutive questions (<i>{str_consec}</i>) are coming from the same chapter (<i>{ch}</i>). Consider moving some of these to other sets.</p>')
                         else: # If not, increment k
                             k += 1
        # If not, we are only coming from one chapter. Ignore this flag
@@ -536,11 +449,7 @@ def edit_sets__references(df):
                         # If so, call consecutive_counter() to see how many consecutive questions we have
                         str_consec, cnt, k = consecutive_counter(df_bk, k)
                         # Send a flag to the output
-                        if i < 9:
-                            # If the set number is single-digit, add a zero in front of it... for sorting purposes
-                            output_list.append(f'<p>* SET 0{i+1}: {cnt} consecutive questions (<i>{str_consec}</i>) are coming from the same book (<i>{bk}</i>). Consider moving some of these to other sets.</p>')
-                        else: # If not, keep the question number
-                            output_list.append(f'<p>* SET {i+1}: {cnt} consecutive questions (<i>{str_consec}</i>) are coming from the same book (<i>{bk}</i>). Consider moving some of these to other sets.</p>')
+                        output_list.append(f'<p>* SET {i+1: 03d}: {cnt} consecutive questions (<i>{str_consec}</i>) are coming from the same book (<i>{bk}</i>). Consider moving some of these to other sets.</p>')
                     else: # If not, increment k
                         k += 1          
         # If there is only one book present, ignore this section
