@@ -3,6 +3,7 @@ def edit_questions__formality(df):
     Sub function to check for formality issues within a question
     Throws a flag if...
     - Question number 1 is for 30 points
+    - Question number 1 is a Concordance question
     - The first word of the actual question is lowercase
     - The question doesn't end with proper punctuation ('?' or '.')
     - The question asks for a "complete reference", but the chapter was given in the introductory remarks
@@ -15,6 +16,9 @@ def edit_questions__formality(df):
       -> The question is asking for the "opening/closing" verse
     - The number of part questions is the same as the number of part answers
       -> When the number of part questions/answers is more than 1
+    - A 10-point question asks "did what" or "how" rather than having the verb in the actual question
+    - A Quotation question doesn't have the word "quote" in it
+    - An Essence [completion] question doesn't have the word "essence" in it
 
     Returns a list containing all the flags to send to the output
     
@@ -39,6 +43,21 @@ def edit_questions__formality(df):
         else: # If not, send the output for multiple questions
             list_flags__formality.append(f'<p>* Sets (<i>{', '.join(map(str,df.loc[((df['Q_Num'] == 1) & (df['Pt_Val'] == 30)), 'Set_Num']))}</i>): Question number 1 is for 30 points. Consider moving this elsewhere in the set.</p>')
 
+    # === Check if question 1 is a Concordance question ===
+    # Check if there is a Concordance column
+    if 'Concordance' in df.columns:
+        # If so...
+        #-> Check if there are any questions labeled question number 1 and...
+        #-> Check if any of those questions are Concordance questions
+        if len(df.loc[(df['Q_Num'] == 1) & (df['Concordance'] != '_')]) > 0:
+            # If so, throw a flag to the output
+            #-> If there is only one question that meets this criteria
+            if len(df.loc[(df['Q_Num'] == 1) & (df['Concordance'] != '_')]) == 1:
+                # If so, send the output for one question
+                list_flags__formality.append(f'<p>* Set {list(df.loc[((df['Q_Num'] == 1) & (df['Concordance'] != '_')), 'Set_Num'])[0]: 03d} question 1 is a concordance question. Consider moving this elsewhere in the set.</p>')
+            else: # If not, send the output for multiple questions
+                list_flags__formality.append(f'<p>* Sets (<i>{', '.join(map(str,df.loc[((df['Q_Num'] == 1) & (df['Concordance'] != '_')), 'Set_Num']))}</i>): Question number 1 is a concordance question. Consider moving this elsewhere in the set.</p>')
+    
     # === Check if the first word of a question is lowercase ===
     # For each question
     for i in range(len(df)):
@@ -57,7 +76,7 @@ def edit_questions__formality(df):
         # Determine if there is a "?" or a "." followed by a quotation mark or just whitespace
         #-> The quotation mark can appear at the end of something like a Scripture-Texst question
         #-> The whitespace can appear at the end of quotation/essence completion questions
-        if not re.search(r'[.?][ "]*\Z', df['Question'].iloc[i]):
+        if not re.search(r'[.?][\s"]*\Z', df['Question'].iloc[i]):
             # If this is not the case either, throw a flag
             list_flags__formality.append(f'<p>! Set {df['Set_Num'].iloc[i]: 03d} question {df['Q_Num'].iloc[i]: 03d} does not end with proper punctuation (<i>? .</i>). These should end the question.</p>')
 
@@ -121,6 +140,42 @@ def edit_questions__formality(df):
             # If so, throw a flag
             list_flags__formality.append(f'<p>! Set {df_mpq_mpa['Set_Num'].iloc[i]: 03d} question {df_mpq_mpa['Q_Num'].iloc[i]: 03d} has the same number of part questions as part answers (<i>{re.findall(r'\d+', df_mpq_mpa['Q_Intro'].iloc[i])[0]}</i>). The number of part answers needs to go away or be changed.</p>')
 
+    # === Check if a 10-point question asks "did what" or "how" rather than having the verb in the question ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_formality = df.loc[
+                            (df['Pt_Val'] == 10) & # 10-point question
+                            (
+                                (df['Notes'].str.contains(r'did what', na = False)) | # Question asks "did what"
+                                (df['Question'].str.contains(r'how', case = False, na = False)) # Question asks "how"
+                            )
+                         ]
+    # For each question in the sub dataframe
+    for i in range(len(df_formality)):
+        # Throw a flag
+        list_flags__formality.append(f'<p>* Set {df_formality['Set_Num'].iloc[i]: 03d} question {df_formality['Q_Num'].iloc[i]: 03d} is asking "how" or "did what". Because this is a 10-point question, consider putting the verb in the question rather than a making the question generic.</p>')
+
+    # === Check if a Quotation question doesn't have the word "quote" in it ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_formality = df.loc[
+                            (df['Q_Intro'].str.contains(r'Q', na = False)) & # Quotation question
+                            (df['Question'].str.contains(r'quote', case = False, na = False) == False) # Question doesn't contain "quote"
+                         ]
+    # For each question in the sub dataframe
+    for i in range(len(df_formality)):
+        # Throw a flag
+        list_flags__formality.append(f'<p>* Set {df_formality['Set_Num'].iloc[i]: 03d} question {df_formality['Q_Num'].iloc[i]: 03d} is a Quotation question, but does not ask the quizzer to "quote" a verse(s). Add the word "quote" rather than "give, say, etc."</p>')
+
+    # === Check if an Essence [completion] question doesn't have the word "essence" in it ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_formality = df.loc[
+                            (df['Q_Intro'].str.contains(r'E', na = False)) & # Essence [completion] question
+                            (df['Question'].str.contains(r'essence', na = False) == False) # Question doesn't contain "essence"
+                         ]
+    # For each question in the sub dataframe
+    for i in range(len(df_formality)):
+        # Throw a flag
+        list_flags__formality.append(f'<p>* Set {df_formality['Set_Num'].iloc[i]: 03d} question {df_formality['Q_Num'].iloc[i]: 03d} is an Essence / Essence Completion question, but does not ask the quizzer to "give in essence" a verse(s). Add the word "essence" rather than just "give, say, etc."</p>')
+
     # Return the list of flags
     return list_flags__formality
 
@@ -134,6 +189,7 @@ def edit_questions__sep_consec(df):
       -> S, C, chs, secs, bks
     - The question is coming from separate verses, but is not marked as separate/consecutive verses
     - The question is marked as separate/consecutive verses, but there aren't multiple references in the answer
+    - The question has one verse reference, but it is asking for multiple verses
     - A standard quotation/essence question from multiple verses isn't labeled as "From # consecutive verses"
     - A standard quotation/essence question from multiple verses doesn't have the number of verses in the introductory remarks
     - A standard quotation/essence question from multiple verses is marked as a multiple-part question
@@ -190,6 +246,25 @@ def edit_questions__sep_consec(df):
             # If not, throw a flag
             list_flags__sep_consec.append(f'<p>! Set {df_sep_consec['Set_Num'].iloc[i]: 03d} question {df_sep_consec['Q_Num'].iloc[i]: 03d} is labeled as separate/consecutive verses, but only one verse is in the answer. Either add verses or remove this introductory remark.</p>')
 
+    # === Check if the question has only one reference but is asking for multiple verses ===
+    # Create a sub dataframe containing all questions asking for multiple verses or...
+    # Include Quotation/Essence completions including the verse(s) that follow, and...
+    df_multi_verse = df.loc[(
+                                (df['Question'].str.contains(r'verses', na = False)) & # Questions that contain "verses"
+                                (df['Question'].str.contains(r'references', na = False) == False) # but don't ask for the references 
+                            ) |
+                            (
+                                (df['Q_Intro'].str.contains(r'C', case = True, na = False)) & # Question is a Quotation/Essence completion question
+                                (df['Question'].str.contains(r'follow, quote|follows, quote', na = False)) # that asks for verse(s) that follow
+                            )
+                           ]
+    # For each question in the sub dataframe
+    for i in range(len(df_multi_verse)):
+        # Check if there are multiple references in the answer
+        if len(re.findall(':', df_multi_verse['Ans_Reference'].iloc[i])) == 1:
+            # If not, throw a flag
+            list_flags__sep_consec.append(f'<p>! Set {df_multi_verse['Set_Num'].iloc[i]: 03d} question {df_multi_verse['Q_Num'].iloc[i]: 03d} is asking for multiple verses, but only one verse reference is in the answer. Either add verses or remove this introductory remark.</p>')
+    
     # === Check if a standard quotation/essence question is from multiple verses, but isn't marked as such ===
     # === Check if a standard quotation/essence question from multiple verses doesn't have the number of verses marked ===
     # === Check if a standard quotation/essence question from multiple verses is marked as a multiple-part question ===
@@ -213,14 +288,18 @@ def edit_questions__sep_consec(df):
 
 
     # === Check if a question asking for (complete) references is marked as separate/consecutive verses ===
-    # Create a sub dataframe containing all questions asking for (complete) references
-    df_complete_refs = df.loc[df['Question'].str.contains('reference')]
+    # Create a sub dataframe containing all questions asking for (complete) references and...
+    # Check that the questions aren't quotation/essence questions (which can ask for the verse and reference)
+    df_complete_refs = df.loc[
+                                (df['Question'].str.contains('reference', na = False)) &
+                                (df['Q_Intro'].str.contains(r'Q|E', na = False) == False)
+                             ]
     # For each question in the sub dataframe
     for i in range(len(df_complete_refs)):
         # Determine if the questions are labeled as separate/consecutive verses
         if 'S' in df_complete_refs['Location'].iloc[i] or 'C' in df_complete_refs['Location'].iloc[i]:
             # If so, throw a flag
-            list_flags__sep_consec.append(f'<p>! Set {df_std['Set_Num'].iloc[i]: 03d} question {df_std['Q_Num'].iloc[i]: 03d} asks for (complete) references, but it is labeled as separate/consecutive verses. The label needs to be removed.</p>')
+            list_flags__sep_consec.append(f'<p>! Set {df_complete_refs['Set_Num'].iloc[i]: 03d} question {df_complete_refs['Q_Num'].iloc[i]: 03d} asks for (complete) references, but it is labeled as separate/consecutive verses. The label needs to be removed.</p>')
 
     # Return the list of flags
     return list_flags__sep_consec
@@ -235,8 +314,10 @@ def edit_questions__scripture_text(df):
       -> the question has the phrase "end quote" indicating a Statement and Question
     - The question is labeled a Scripture Text question, but it doesn't have the word "quote" in it
     - The question is labeled a Scripture Text question, but it has a reference in the question
+    - The question has only one word after "quote"
     - A Scripture Text question starts with the word "Referring", but doesn't have a pronoun in the Scripture Text part of the question
     - A Scripture Text question has a pronoun after the word "quote", but it doesn't start with "Referring"
+    - A question starting with "Referring" isn't labeled as a Scripture Text question
 
     Returns a list containing all the flags to send to the output
     
@@ -266,10 +347,72 @@ def edit_questions__scripture_text(df):
         list_flags__scripture_text.append(f'<p>! Set {df.loc[(df['Q_Intro'].str.contains('T')) & (df['Question'].str.contains('quote,') == False)]['Set_Num'].iloc[i]: 03d} question {df.loc[(df['Q_Intro'].str.contains('T')) & (df['Question'].str.contains('quote,') == False)]['Q_Num'].iloc[i]: 03d} is labeled as Scripture-Text but does not have a scripture text at the end of the question (denoted by "quote"). Consider adding this or removing the Scripture-Text introductory remark.</p>')
 
     # === Check for questions labeled Scripture-Text that have a verse reference in the question ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_scripture_text = df.loc[
+                                (df['Q_Intro'].str.contains(r'T', na = False)) & # Scripture Text question
+                                (df['Question'].str.contains(r'st verse|nd verse|rd verse|ht verse|verse \d+', na = False)) # verse number in the question
+                              ]
+    # For each question in the sub dataframe
+    for i in range(len(df_scripture_text)):
+        # Throw a flag
+        list_flags__scripture_text.append(f'<p>! Set {df_scripture_text['Set_Num'].iloc[i]: 03d} question {df_scripture_text['Q_Num'].iloc[i]: 03d} has a reference in a Scripture Text question. Either remove the reference or remove the Scripture Text introductory remark.</p>')
+
+    # === Check for only one word after "quote" in a Scripture Text question ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_scripture_text = df.loc[
+                                (df['Q_Intro'].str.contains(r'T', na = False)) & # Scripture Text question
+                                (df['Question'].str.contains(r'quote, \S+\s') == False) # One word after "quote"
+                              ]
+    # For each question in the sub dataframe
+    for i in range(len(df_scripture_text)):
+        # Throw a flag
+        list_flags__scripture_text.append(f'<p>* Set {df_scripture_text['Set_Num'].iloc[i]: 03d} question {df_scripture_text['Q_Num'].iloc[i]: 03d} has a 1-word scripture text. This is generally frowned upon, so consider adding more words into the scripture text if you can.</p>')
 
     # === Check if a Scripture-Text starts with "Referring" but doesn't have a pronoun after "quote" ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_scripture_text = df.loc[
+                                (df['Q_Intro'].str.contains(r'T', na = False)) & # Scripture Text question
+                                (df['Question'].str.contains(r'Referring', na = False)) & # Starts with "Referring"
+                                (
+                                    (df['Question'].str.contains(r'quote[\s\S]+I[ ?.]|quote[\s\S]+me[ ?.]|quote[\s\S]+my[ ?.s]', na = False) == False) & # Me
+                                    (df['Question'].str.contains(r'quote[\s\S]+you[ ?.r]', na = False) == False) & # You
+                                    (df['Question'].str.contains(r'quote[\s\S]+he[ ?.]|quote[\s\S]+hi[ ?.ms]', na = False) == False) & # Him
+                                    (df['Question'].str.contains(r'quote[\s\S]+she[ ?.]|quote[\s\S]+her[ ?.s]', na = False) == False) & # Her
+                                    (df['Question'].str.contains(r'quote[\s\S]+them[ ?.s]|quote[\s\S]+their[ ?.]', na = False) == False) & # Them
+                                    (df['Question'].str.contains(r'quote[\s\S]+it[ ?.s]', na = False) == False) # It
+                                )
+                              ]
+    for i in range(len(df_scripture_text)):
+        # Throw a flag
+        list_flags__scripture_text.append(f'<p>* Set {df_scripture_text['Set_Num'].iloc[i]: 03d} question {df_scripture_text['Q_Num'].iloc[i]: 03d} Says it is referring to something, but does not mention the referral in the Scripture Text (usually a pronoun). Either add the referral or remove the "Referring" phrase.</p>')
 
     # === Check if a Scripture-Text question has a pronoun after "quote" but doesn't start with "Referring" ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_scripture_text = df.loc[
+                                (df['Q_Intro'].str.contains(r'T', na = False)) & # Scripture Text question
+                                (df['Question'].str.contains(r'Referring', na = False) == False) & # Does not start with "Referring"
+                                (
+                                    (df['Question'].str.contains(r'quote[\s\S]+I[ ?.]|quote[\s\S]+me[ ?.]|quote[\s\S]+my[ ?.s]', na = False)) | # Me
+                                    (df['Question'].str.contains(r'quote[\s\S]+you[ ?.r]', na = False)) | # You
+                                    (df['Question'].str.contains(r'quote[\s\S]+he[ ?.]|quote[\s\S]+hi[ ?.ms]', na = False)) | # Him
+                                    (df['Question'].str.contains(r'quote[\s\S]+she[ ?.]|quote[\s\S]+her[ ?.s]', na = False)) | # Her
+                                    (df['Question'].str.contains(r'quote[\s\S]+them[ ?.s]|quote[\s\S]+their[ ?.]', na = False)) | # Them
+                                    (df['Question'].str.contains(r'quote[\s\S]+it[ ?.s]', na = False)) # It
+                                )
+                              ]
+    for i in range(len(df_scripture_text)):
+        # Throw a flag
+        list_flags__scripture_text.append(f'<p>* Set {df_scripture_text['Set_Num'].iloc[i]: 03d} question {df_scripture_text['Q_Num'].iloc[i]: 03d} has a pronoun in the scripture text, but does not say what it is referring to. Either add a "Referring to ___" clause at the beginning or make sure the noun is in the question before the scripture text.</p>')
+
+    # === Check if a question starts with "Referring" but isn't labeled a Scripture Text question ===
+    # Create a sub dataframe of questions that meet this criteria
+    df_scripture_text = df.loc[
+                                (df['Q_Intro'].str.contains(r'T', na = False) == False) & # Not a Scripture Text question
+                                (df['Question'].str.contains(r'Referring', na = False))  # Starts with "Referring"
+                              ]
+    for i in range(len(df_scripture_text)):
+        # Throw a flag
+        list_flags__scripture_text.append(f'<p>* Set {df_scripture_text['Set_Num'].iloc[i]: 03d} question {df_scripture_text['Q_Num'].iloc[i]: 03d} Starts with "Referring", but is not labeled a Scripture Text question. Questions that start with "Referring" usually refer to a pronoun in a scripture text. Either make this a Scripture Text question or remove the "Referring" phrase at the beginning.</p>')
 
     # Return the list of flag messages
     return list_flags__scripture_text
