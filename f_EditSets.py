@@ -59,7 +59,7 @@ def edit_sets__concordance(df):
             # See if there are more than 5 concordance questions in the set
             if len(df_conc) > 5:
                 # If so, throw a flag
-                output_list.append(f'<p>* SET {i+1: 03d} may have too many Concordance questions (<i>{len(df_conc)}x</i>) (<i>{', '.join(map(str, df_set['Q_Num']))}</i>). Consider moving some of these to other sets.</p>')
+                output_list.append(f'<p>* SET {i+1: 03d} may have too many Concordance questions (<i>{len(df_conc)}x</i>) (<i>{', '.join(map(str, df_conc['Q_Num']))}</i>). Consider moving some of these to other sets.</p>')
 
             
             # === Check if there are consecutive, non-10-point questions that are concordance ===
@@ -106,13 +106,16 @@ def edit_sets__concordance(df):
 
 def edit_sets__type_of_question(df):
     """
-    Sub-function to throw a flag if...
+    Sub-function to throw a flag if, in a set...
     -> There are multiple Unique Word questions
     -> There are multiple "of" phrase questions
     -> There are multiple Adjective questions
     -> There are multiple "According to *verse*" questions
     -> There are multiple "About/Describe" questions
     -> There are multiple "How does *verse* describe *noun*" questions
+    -> There are multiple "Reference of Section" questions
+    -> There are multiple Quotation/Essence Completion questions
+    -> There are multiple Standard Quotation/Essence questions
 
     Returns a list of output messages to concatenate to the overall output
     
@@ -159,16 +162,34 @@ def edit_sets__type_of_question(df):
             # If so, throw a flag
             output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>How does *verse* describe ___</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'How does *verse* describe ___', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
 
+        # === Check if there are multiple "Reference of Section" questions ===
+        if len(df_set.loc[df['Notes'] == 'References of section']) > 1:
+            # If so throw a flag
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>Reference of section</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'] == 'References of section', 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+
+        # === Check if there are multiple Quotation/Essence Completion questions ===
+        if len(df_set.loc[df['Q_Intro'].str.contains(r'C', na = False)]) > 1:
+            # If so throw a flag
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>Quotation/Essence Completion</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Q_Intro'].str.contains(r'C', na = False), 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+
+        # === Check if there are muleiple Standard Quotation/Essence questions ===
+        if len(df_set.loc[df['Notes'].str.contains(r'Standard', na = False)]) > 1:
+            # If so throw a flag
+            output_list.append(f'<p>* SET {i+1: 03d} has multiple "<i>Standard Quotation/Essence</i>" questions (<i>{', '.join(map(str, list(df_set.loc[df['Notes'].str.contains(r'Standard', na = False), 'Q_Num'])))}</i>). Consider moving these around other sets.</p>')
+
     # Return the output
     return output_list
     
 def edit_sets__intro(df):
     """
     Sub-Function to throw a flag if
+    - 3 consecutive questions have the same point value
     - 3 consecutive questions have the same introductory remark
       -> except for Complete Answer
     - There are more than 2 Statement and Questions
+    - There are consecutive Statement and Questions
     - There are more than 4 Scripture Text Questions
+    - There are more than 4 combined Quotation / Essence questions
 
     Returns a list of output messages to concatenate to the overall output
     
@@ -186,6 +207,24 @@ def edit_sets__intro(df):
         df_set = df.loc[df['Set_Num'] == i+1]
 
         # =-=-=-=-=-=-=-=-=-= CHECKS =-=-=-=-=-=-=-=-=-=
+
+        # === Check if there are 3 or more consecutive questions with the same point value ===
+        # Create / Reset the while-loop index 'k'
+        k = 0
+        # For each question
+        while k < len(df_set):
+            # Check if 
+            #-> we are not going out of bounds
+            #-> this question and the next two have the same point value
+            if (k+2 < len(df_set)) and (df_set['Pt_Val'].iloc[k] == df_set['Pt_Val'].iloc[k+1]) and (df_set['Pt_Val'].iloc[k] == df_set['Pt_Val'].iloc[k+2]):
+                # If so, call consecutive_counter() to determine how many consecutive questions have the same point value
+                str_consec, cnt, k = consecutive_counter(df_set, k)
+                # Throw a flag 
+                output_list.append(f'<p>* SET {i+1: 03d} has {cnt} consecutive questions worth {df_set['Pt_Val'].iloc[k]} points. Consider spreading these out.</p>')
+            # If not, increment k
+            else:
+                k += 1
+            
 
         # === Check if there are 3 or more consecutive questions with the same introductory remark ===
         # ----> Except for complete answer
@@ -252,12 +291,38 @@ def edit_sets__intro(df):
             # Throw a flag
             output_list.append(f'<p>* SET {i+1: 03d} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Statement and Question</i>. Consider moving some of these to other sets.</p>')
 
+        # === Check if there are consecutive questions marked Statement and Question ===
+        # Determine if there are even multiple questions marked Statement and Question
+        if len(df_set.loc[df_set['Q_Intro'].str.contains('S', case = True, na = False)]) > 1:
+            # If so, create a sub dataframe containing all Statement and Questions
+            df_shorthand = df_set.loc[df_set['Q_Intro'].str.contains('S', case = True, na = False)]
+            # Reset the index variable
+            k = 0
+            # For each question in the sub dataframe
+            while k < len(df_shorthand):
+                # Check if the next question is consecutive
+                if ((k+1 < len(df_shorthand) and (df_shorthand['Q_Num'].iloc[k+1] == df_shorthand['Q_Num'].iloc[k] + 1))):
+                    # If so, call consecutive_counter() to determine how many consecutive questions there are
+                    str_consec, cnt, k = consecutive_counter(df_shorthand, k)
+                    # Send a flag to the output
+                    output_list.append(f'<p>* SET {i+1: 03d}: {cnt} consecutive questions (<i>{str_consec}</i>) have the same introductory remark (<i>Statement and Question</i>). Consider moving these around.</p>')
+                # If not, just increment k
+                else:
+                    k += 1
+
         # === Check if there are more than 4 questions marked Scripture Text Question ===
         if (len(df_set.loc[df_set['Q_Intro'].str.contains('T', case = True)]) > 4):
             # If so, grab the question numbers of these questions and...
             q_nums = df_set.loc[(df_set['Q_Intro'].str.contains('T', case = True)), ('Q_Num')]
             # Throw a flag
             output_list.append(f'<p>* SET {i+1: 03d} may have too many questions (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) labeled as <i>Scripture-Text Question</i>. Consider moving some of these to other sets.</p>')
+
+        # === Check if there are more than 4 combined Quotation / Essence questions ===
+        if(len(df_set.loc[df_set['Q_Intro'].str.contains(r'Q|E', na = False)])) > 4:
+            # If so, grab the question numbers of these questions
+            q_nums = df_set.loc[df_set['Q_Intro'].str.contains(r'Q|E', na = False), ('Q_Num')]
+            # Throw a flag
+            output_list.append(f'<p>* SET {i+1: 03d} may have too many (<i>{', '.join(map(str, q_nums))}</i>) (<i>{len(q_nums)}x</i>) <i>Quotation/Essence</i> questions. Consider moving some of these to other sets.</p>')
 
     # Return the output list
     return output_list
