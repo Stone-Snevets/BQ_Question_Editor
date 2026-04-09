@@ -27,6 +27,10 @@ def getTheFile():
         # Create a data frame containing the file's contents
         df = pd.read_csv(summarizer_file, encoding = 'latin')
 
+        # Call edit_questions() to begin editing the actual questions
+        #-> Paste any edit suggestions to our output variable
+        editor_output += g_EditQuestions.edit_questions(df)
+
         # Check to see if we have actual sets or if we are dealing with a bunch of questions
         #-> Check if there is more than one set listed, or...
         #-> Check if there are exactly 20 quesitons (8 10s, 9 20s, and 3 30s) or...
@@ -52,10 +56,6 @@ def getTheFile():
         else:
             # If not, there are no sets to edit, we just move on
             print('No sets to edit')
-
-        # Call edit_questions() to begin editing the actual questions
-        #-> Paste any edit suggestions to our output variable
-        editor_output += g_EditQuestions.edit_questions(df)
 
         # Return the edit messages
         return editor_output
